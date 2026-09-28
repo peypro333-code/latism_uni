@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>پنل مدیریت | LaTism</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body data-lang="fa">
+<div class="page-shell">
+  <div style="width:100%;max-width:820px;">
+    <div class="top-mini-nav">
+      <a href="member.html">← <span class="fa">پنل من</span><span class="en">My Panel</span></a>
+      <div class="lang-toggle">
+        <button data-set-lang="fa" class="active">فا</button>
+        <button data-set-lang="en">EN</button>
+      </div>
+    </div>
+    <div class="page-card wide" id="card">
+      <div class="load-msg"><span class="fa">در حال بارگذاری...</span><span class="en">Loading...</span></div>
+    </div>
+  </div>
+</div>
+<script>
+  const body = document.body;
+  document.querySelectorAll('[data-set-lang]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const lang = btn.getAttribute('data-set-lang');
+      body.setAttribute('data-lang', lang);
+      document.documentElement.setAttribute('lang', lang);
+      document.documentElement.setAttribute('dir', lang === 'fa' ? 'rtl' : 'ltr');
+      document.querySelectorAll('[data-set-lang]').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      if (window.__renderUsers) window.__renderUsers();
+    });
+  });
+  const isFa = () => body.getAttribute('data-lang') === 'fa';
+  let usersCache = [];
+
+  function renderUsers(){
+    const card = document.getElementById('card');
+    if (!usersCache.length){
+      card.innerHTML = `
+        <div class="logo"><img src="assets/logo.png" alt="LaTism logo">LaTism</div>
+        <h1>${isFa() ? 'پنل مدیریت اعضا' : 'Members Admin Panel'}</h1>
+        <div class="empty-state">${isFa() ? 'هنوز عضوی ثبت‌نام نکرده.' : 'No members yet.'}</div>
+      `;
+      return;
+    }
+    const rows = usersCache.map(u => `
+      <tr>
+        <td>${u.firstName} ${u.lastName}</td>
+        <td class="mono">${u.phone}</td>
+        <td><span class="role-badge ${u.role}">${u.role === 'admin' ? (isFa() ? 'ادمین' : 'Admin') : (isFa() ? 'عضو' : 'Member')}</span></td>
+        <td>
+          <select data-phone="${u.phone}">
+            <option value="member" ${u.role === 'member' ? 'selected' : ''}>${isFa() ? 'عضو عادی' : 'Member'}</option>
+            <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>${isFa() ? 'ادمین' : 'Admin'}</option>
+          </select>
+        </td>
+      </tr>
+    `).join('');
+    card.innerHTML = `
+      <div class="logo"><img src="assets/logo.png" alt="LaTism logo">LaTism</div>
+      <h1>${isFa() ? 'پنل مدیریت اعضا' : 'Members Admin Panel'}</h1>
+      <p class="sub">${isFa() ? `${usersCache.length} عضو ثبت‌نام کرده` : `${usersCache.length} members registered`}</p>
+      <div style="overflow-x:auto;">
+        <table class="user-table">
+          <thead><tr>
+            <th>${isFa() ? 'نام' : 'Name'}</th>
+            <th>${isFa() ? 'تلفن' : 'Phone'}</th>
+            <th>${isFa() ? 'نقش' : 'Role'}</th>
+            <th>${isFa() ? 'تغییر نقش' : 'Change Role'}</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+    card.querySelectorAll('select[data-phone]').forEach(sel => {
+      sel.addEventListener('change', async () => {
+        const phone = sel.dataset.phone;
+        const role = sel.value;
+        sel.disabled = true;
+        try {
+          const res = await fetch('/api/admin/set-role', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ phone, role })
+          });
+          if (res.ok) {
+            const u = usersCache.find(x => x.phone === phone);
+            if (u) u.role = role;
+            renderUsers();
+          }
+        } finally {
+          sel.disabled = false;
+        }
+      });
+    });
+  }
+  window.__renderUsers = renderUsers;
+
+  (async () => {
+    try {
+      const meRes = await fetch('/api/me');
+      if (!meRes.ok) { window.location.href = 'index.html'; return; }
+      const { user } = await meRes.json();
+      if (user.role !== 'admin') { window.location.href = 'member.html'; return; }
+
+      const res = await fetch('/api/admin/users');
+      if (!res.ok) { window.location.href = 'member.html'; return; }
+      const data = await res.json();
+      usersCache = data.users;
+      renderUsers();
+    } catch (e) {
+      window.location.href = 'index.html';
+    }
+  })();
+</script>
+</body>
+</html>

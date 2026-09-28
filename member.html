@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>پنل کاربری | LaTism</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body data-lang="fa">
+<div class="page-shell">
+  <div style="width:100%;max-width:480px;">
+    <div class="top-mini-nav">
+      <a href="index.html">← <span class="fa">بازگشت به سایت</span><span class="en">Back to site</span></a>
+      <div class="lang-toggle">
+        <button data-set-lang="fa" class="active">فا</button>
+        <button data-set-lang="en">EN</button>
+      </div>
+    </div>
+    <div class="page-card" id="card">
+      <div class="load-msg"><span class="fa">در حال بارگذاری...</span><span class="en">Loading...</span></div>
+    </div>
+  </div>
+</div>
+<script>
+  const body = document.body;
+  document.querySelectorAll('[data-set-lang]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const lang = btn.getAttribute('data-set-lang');
+      body.setAttribute('data-lang', lang);
+      document.documentElement.setAttribute('lang', lang);
+      document.documentElement.setAttribute('dir', lang === 'fa' ? 'rtl' : 'ltr');
+      document.querySelectorAll('[data-set-lang]').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      if (window.__renderCard) window.__renderCard();
+    });
+  });
+  const isFa = () => body.getAttribute('data-lang') === 'fa';
+
+  (async () => {
+    const card = document.getElementById('card');
+    let currentUser = null;
+    try {
+      const res = await fetch('/api/me');
+      if (!res.ok) { window.location.href = 'index.html'; return; }
+      const data = await res.json();
+      currentUser = data.user;
+    } catch (e) {
+      window.location.href = 'index.html';
+      return;
+    }
+
+    function render(){
+      const user = currentUser;
+      card.innerHTML = `
+        <div class="logo"><img src="assets/logo.png" alt="LaTism logo">LaTism</div>
+        <h1>${user.firstName} ${user.lastName}</h1>
+        <p class="sub">${user.phone}</p>
+        <div style="text-align:center;margin-bottom:26px;">
+          <span class="role-badge ${user.role}">${user.role === 'admin' ? (isFa() ? 'ادمین' : 'Admin') : (isFa() ? 'عضو' : 'Member')}</span>
+        </div>
+        ${user.role === 'admin' ? `<a href="admin.html" class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:12px;">${isFa() ? 'پنل مدیریت' : 'Admin Panel'}</a>` : ''}
+        <button id="logoutBtn" class="btn btn-ghost" style="width:100%;justify-content:center;">${isFa() ? 'خروج' : 'Log out'}</button>
+      `;
+      document.getElementById('logoutBtn').addEventListener('click', async () => {
+        await fetch('/api/logout', { method: 'POST' });
+        window.location.href = 'index.html';
+      });
+    }
+    window.__renderCard = render;
+    render();
+  })();
+</script>
+</body>
+</html>
